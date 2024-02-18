@@ -1,0 +1,39 @@
+const GitHubStrategy = require('passport-github2').Strategy;
+const session = require("express-session");
+const DB = require('../src/models/UtilisateurModel.useless');
+
+module.exports = (app, passport) => {
+    // initialisation
+    app.use(passport.initialize());
+    app.use(session({
+        secret: process.env.SESSION_SECRET,
+        saveUninitialized:true,
+        resave: false
+    }));
+    app.use(passport.session());
+
+    passport.serializeUser((user, done) => {
+        done(null, user);
+    });
+
+    passport.deserializeUser((id, done) => {
+        done(null, id);
+    })
+
+    passport.use(new GitHubStrategy({
+            clientID: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            callbackURL: process.env.URL_NAME+"user/signin/github/callback",
+            scope: 'user:email'
+        },
+        (accessToken, refreshToken, profile, done) => {
+            if (profile._json.email == null){
+                DB.erreurGit();
+                //raise();
+                return;
+            }
+            return DB.findOneUtilisateurByEmail(profile._json.email, "", profile._json.name, done, accessToken);
+            //return done(null, {profile: profile._json});
+        }
+    ));
+}
